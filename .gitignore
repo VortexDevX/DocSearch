@@ -6,8 +6,8 @@
 # Dependencies
 node_modules/
 
-# Database (if you don't want to commit it)
-# database/*.db
+# Database 
+database/*.db
 
 # Logs
 logs/

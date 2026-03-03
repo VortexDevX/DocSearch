@@ -1,7 +1,10 @@
 /* ============================================================
-   DocSearch - Server
-   Production-ready with pagination, security & validation
+   DocSearch - Production-Ready Server
+   Features: Pagination, Security, Rate Limiting, Compression
    ============================================================ */
+
+// Load environment variables first
+require("dotenv").config();
 
 const express = require("express");
 const initSqlJs = require("sql.js");
@@ -9,20 +12,33 @@ const fs = require("fs");
 const path = require("path");
 
 /* ============================================================
-   CONFIG
+   CONFIGURATION
    ============================================================ */
 
 const CONFIG = {
-  PORT: process.env.PORT || 3000,
-  DB_PATH: path.join(__dirname, "database", "doctors.db"),
+  // Server
+  PORT: parseInt(process.env.PORT, 10) || 3000,
+  NODE_ENV: process.env.NODE_ENV || "development",
 
-  // Rate limiting
-  RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000,
-  RATE_LIMIT_MAX_REQUESTS: 100,
+  // Database
+  DB_PATH: process.env.DB_PATH
+    ? path.resolve(process.env.DB_PATH)
+    : path.join(__dirname, "database", "doctors.db"),
 
-  // Pagination - THIS IS KEY!
-  DEFAULT_PAGE_SIZE: 12,
-  MAX_PAGE_SIZE: 50,
+  // Pagination
+  PAGE_SIZE: parseInt(process.env.PAGE_SIZE, 10) || 12,
+  MAX_PAGE_SIZE: parseInt(process.env.MAX_PAGE_SIZE, 10) || 50,
+
+  // Rate Limiting
+  RATE_LIMIT_WINDOW_MS:
+    parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
+  RATE_LIMIT_MAX_REQUESTS:
+    parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+
+  // Security
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim())
+    : ["http://localhost:3000", "http://127.0.0.1:3000"],
 
   // Search
   MAX_SEARCH_LENGTH: 100,
@@ -32,6 +48,9 @@ const CONFIG = {
   VALID_GENDER_OPTIONS: ["Male", "Female", ""],
 };
 
+// Derived config
+const IS_PRODUCTION = CONFIG.NODE_ENV === "production";
+
 const app = express();
 let db;
 
@@ -39,6 +58,9 @@ let db;
    UTILITIES
    ============================================================ */
 
+/**
+ * Sanitize string input to prevent XSS/injection
+ */
 function sanitizeString(str) {
   if (typeof str !== "string") return "";
   return str
@@ -47,11 +69,17 @@ function sanitizeString(str) {
     .replace(/[<>\"\'`;\\]/g, "");
 }
 
+/**
+ * Parse positive integer with default
+ */
 function parsePositiveInt(value, defaultValue = 0) {
   const parsed = parseInt(value, 10);
   return isNaN(parsed) || parsed < 0 ? defaultValue : parsed;
 }
 
+/**
+ * Create standardized API response
+ */
 function apiResponse(
   res,
   statusCode,
@@ -69,18 +97,39 @@ function apiResponse(
   return res.status(statusCode).json(response);
 }
 
-function logError(context, error) {
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}] [ERROR] [${context}]:`, error.message || error);
+/**
+ * Get timestamp for logging
+ */
+function getTimestamp() {
+  return new Date().toISOString();
 }
 
+/**
+ * Log info message
+ */
 function logInfo(message) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [INFO] ${message}`);
+  console.log(`[${getTimestamp()}] [INFO] ${message}`);
+}
+
+/**
+ * Log error message
+ */
+function logError(context, error) {
+  console.error(
+    `[${getTimestamp()}] [ERROR] [${context}]:`,
+    error.message || error,
+  );
+}
+
+/**
+ * Log warning message
+ */
+function logWarn(message) {
+  console.warn(`[${getTimestamp()}] [WARN] ${message}`);
 }
 
 /* ============================================================
-   RATE LIMITER
+   RATE LIMITER (In-Memory)
    ============================================================ */
 
 const rateLimitStore = new Map();
@@ -89,6 +138,7 @@ function rateLimit(req, res, next) {
   const ip = req.ip || req.connection.remoteAddress || "unknown";
   const now = Date.now();
 
+  // Cleanup old entries (1% chance per request)
   if (Math.random() < 0.01) {
     for (const [key, value] of rateLimitStore.entries()) {
       if (now - value.windowStart > CONFIG.RATE_LIMIT_WINDOW_MS) {
@@ -106,6 +156,7 @@ function rateLimit(req, res, next) {
     record.count++;
   }
 
+  // Set rate limit headers
   const remaining = Math.max(0, CONFIG.RATE_LIMIT_MAX_REQUESTS - record.count);
   const resetTime = Math.ceil(
     (record.windowStart + CONFIG.RATE_LIMIT_WINDOW_MS - now) / 1000,
@@ -116,6 +167,7 @@ function rateLimit(req, res, next) {
   res.setHeader("X-RateLimit-Reset", resetTime);
 
   if (record.count > CONFIG.RATE_LIMIT_MAX_REQUESTS) {
+    logWarn(`Rate limit exceeded for IP: ${ip}`);
     return apiResponse(
       res,
       429,
@@ -132,23 +184,95 @@ function rateLimit(req, res, next) {
    MIDDLEWARE
    ============================================================ */
 
+// Trust proxy (for Heroku, Render, etc.)
+if (IS_PRODUCTION) {
+  app.set("trust proxy", 1);
+}
+
 // Security headers
 app.use((req, res, next) => {
+  // Prevent clickjacking
   res.setHeader("X-Frame-Options", "DENY");
+
+  // Prevent MIME sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
+
+  // XSS protection
   res.setHeader("X-XSS-Protection", "1; mode=block");
+
+  // Referrer policy
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  // HSTS (production only)
+  if (IS_PRODUCTION) {
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
+  }
+
+  // Content Security Policy
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " +
+      "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self';",
+  );
+
   next();
 });
+
+// CORS handling
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Check if origin is allowed
+  if (CONFIG.ALLOWED_ORIGINS.includes(origin) || !IS_PRODUCTION) {
+    res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  }
+
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
+
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
+  next();
+});
+
+// Compression (production only)
+if (IS_PRODUCTION) {
+  try {
+    const compression = require("compression");
+    app.use(compression());
+    logInfo("Compression enabled");
+  } catch (e) {
+    logWarn(
+      "Compression module not found. Install with: npm install compression",
+    );
+  }
+}
 
 // Body parser
 app.use(express.json({ limit: "10kb" }));
 
-// Rate limiting for API
+// Rate limiting for API routes
 app.use("/api", rateLimit);
 
-// Static files
-app.use(express.static(path.join(__dirname, "public")));
+// Static files with caching
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    maxAge: IS_PRODUCTION ? "1d" : 0,
+    etag: true,
+    lastModified: true,
+  }),
+);
 
 // Request logging
 app.use((req, res, next) => {
@@ -156,8 +280,13 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
+
+    // Only log API requests (or all in development)
     if (req.url.startsWith("/api")) {
-      logInfo(`${req.method} ${req.url} ${res.statusCode} - ${duration}ms`);
+      const logLevel = res.statusCode >= 400 ? "WARN" : "INFO";
+      console.log(
+        `[${getTimestamp()}] [${logLevel}] ${req.method} ${req.url} ${res.statusCode} - ${duration}ms`,
+      );
     }
   });
 
@@ -168,6 +297,9 @@ app.use((req, res, next) => {
    DATABASE HELPERS
    ============================================================ */
 
+/**
+ * Execute query and return all rows
+ */
 function queryAll(sql, params = []) {
   let stmt;
   try {
@@ -190,6 +322,9 @@ function queryAll(sql, params = []) {
   }
 }
 
+/**
+ * Execute query and return single row
+ */
 function queryOne(sql, params = []) {
   const rows = queryAll(sql, params);
   return rows[0] || null;
@@ -199,6 +334,9 @@ function queryOne(sql, params = []) {
    INPUT VALIDATORS
    ============================================================ */
 
+/**
+ * Validate search/filter parameters
+ */
 function validateSearchParams(query) {
   const errors = [];
   const validated = {};
@@ -223,7 +361,7 @@ function validateSearchParams(query) {
     const gender = sanitizeString(query.gender);
     if (CONFIG.VALID_GENDER_OPTIONS.includes(gender)) {
       validated.gender = gender;
-    } else {
+    } else if (gender) {
       errors.push("Invalid gender value");
     }
   }
@@ -239,7 +377,7 @@ function validateSearchParams(query) {
     if (minExp >= 0 && minExp <= 100) {
       validated.minExp = minExp;
     } else {
-      errors.push("Invalid minimum experience value");
+      errors.push("Invalid minimum experience value (0-100)");
     }
   }
 
@@ -253,10 +391,10 @@ function validateSearchParams(query) {
     }
   }
 
-  // PAGINATION - IMPORTANT!
+  // Pagination
   validated.page = Math.max(1, parsePositiveInt(query.page, 1));
   validated.limit = Math.min(
-    Math.max(1, parsePositiveInt(query.limit, CONFIG.DEFAULT_PAGE_SIZE)),
+    Math.max(1, parsePositiveInt(query.limit, CONFIG.PAGE_SIZE)),
     CONFIG.MAX_PAGE_SIZE,
   );
 
@@ -268,7 +406,7 @@ function validateSearchParams(query) {
    ============================================================ */
 
 /**
- * GET /api/doctors - Search and filter doctors WITH PAGINATION
+ * GET /api/doctors - Search and filter doctors with pagination
  */
 app.get("/api/doctors", (req, res) => {
   try {
@@ -282,11 +420,11 @@ app.get("/api/doctors", (req, res) => {
     const { q, specialty, city, gender, sort, minExp, maxFee, page, limit } =
       validated;
 
-    // ========== BUILD BASE QUERY ==========
+    // ========== BUILD WHERE CLAUSE ==========
     let whereClause = "WHERE 1=1";
     const params = [];
 
-    // Search query
+    // Search query (multiple fields)
     if (q) {
       const searchTerm = `%${q}%`;
       whereClause += `
@@ -331,12 +469,12 @@ app.get("/api/doctors", (req, res) => {
       params.push(maxFee);
     }
 
-    // ========== COUNT TOTAL (for pagination) ==========
+    // ========== COUNT TOTAL ==========
     const countSql = `SELECT COUNT(*) as total FROM doctors ${whereClause}`;
     const countResult = queryOne(countSql, params);
     const total = countResult ? countResult.total : 0;
 
-    // ========== BUILD DATA QUERY WITH PAGINATION ==========
+    // ========== SORTING ==========
     const SORT_MAP = {
       rating: "rating DESC, experience DESC",
       experience: "experience DESC, rating DESC",
@@ -345,6 +483,7 @@ app.get("/api/doctors", (req, res) => {
       name: "name ASC",
     };
 
+    // ========== GET PAGINATED DATA ==========
     const offset = (page - 1) * limit;
 
     const dataSql = `
@@ -354,21 +493,20 @@ app.get("/api/doctors", (req, res) => {
       LIMIT ? OFFSET ?
     `;
 
-    // Add limit and offset to params
     const dataParams = [...params, limit, offset];
-
-    // Execute query
     const doctors = queryAll(dataSql, dataParams);
 
-    // ========== CALCULATE PAGINATION META ==========
+    // ========== PAGINATION META ==========
     const totalPages = Math.ceil(total / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
-    // Log for debugging
-    logInfo(
-      `Pagination: page=${page}, limit=${limit}, total=${total}, returned=${doctors.length}`,
-    );
+    // Log pagination info (development only)
+    if (!IS_PRODUCTION) {
+      logInfo(
+        `Pagination: page=${page}, limit=${limit}, total=${total}, returned=${doctors.length}`,
+      );
+    }
 
     return apiResponse(res, 200, true, doctors, null, {
       total,
@@ -386,7 +524,7 @@ app.get("/api/doctors", (req, res) => {
 });
 
 /**
- * GET /api/doctors/:id - Get single doctor
+ * GET /api/doctors/:id - Get single doctor by ID
  */
 app.get("/api/doctors/:id", (req, res) => {
   try {
@@ -410,7 +548,7 @@ app.get("/api/doctors/:id", (req, res) => {
 });
 
 /**
- * GET /api/specialties
+ * GET /api/specialties - Get all unique specialties
  */
 app.get("/api/specialties", (req, res) => {
   try {
@@ -431,7 +569,7 @@ app.get("/api/specialties", (req, res) => {
 });
 
 /**
- * GET /api/cities
+ * GET /api/cities - Get all unique cities
  */
 app.get("/api/cities", (req, res) => {
   try {
@@ -452,7 +590,7 @@ app.get("/api/cities", (req, res) => {
 });
 
 /**
- * GET /api/stats
+ * GET /api/stats - Get database statistics
  */
 app.get("/api/stats", (req, res) => {
   try {
@@ -478,7 +616,7 @@ app.get("/api/stats", (req, res) => {
 });
 
 /**
- * GET /api/health
+ * GET /api/health - Health check endpoint
  */
 app.get("/api/health", (req, res) => {
   try {
@@ -487,7 +625,9 @@ app.get("/api/health", (req, res) => {
     if (result?.ok === 1) {
       return apiResponse(res, 200, true, {
         status: "healthy",
+        environment: CONFIG.NODE_ENV,
         timestamp: new Date().toISOString(),
+        uptime: Math.floor(process.uptime()),
       });
     }
 
@@ -498,7 +638,9 @@ app.get("/api/health", (req, res) => {
   }
 });
 
-// 404 for unknown API routes
+/**
+ * 404 Handler for unknown API routes
+ */
 app.use("/api/*", (req, res) => {
   return apiResponse(res, 404, false, null, "API endpoint not found");
 });
@@ -508,9 +650,12 @@ app.use("/api/*", (req, res) => {
    ============================================================ */
 
 app.get("*", (req, res) => {
+  // Check if requesting a file (has extension)
   if (path.extname(req.path)) {
     return res.status(404).send("File not found");
   }
+
+  // Serve SPA
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
@@ -520,7 +665,11 @@ app.get("*", (req, res) => {
 
 app.use((err, req, res, next) => {
   logError("Unhandled Error", err);
-  return apiResponse(res, 500, false, null, "Internal server error");
+
+  // Don't leak error details in production
+  const message = IS_PRODUCTION ? "Internal server error" : err.message;
+
+  return apiResponse(res, 500, false, null, message);
 });
 
 /* ============================================================
@@ -529,18 +678,22 @@ app.use((err, req, res, next) => {
 
 async function startServer() {
   try {
+    // Check database exists
     if (!fs.existsSync(CONFIG.DB_PATH)) {
       console.error("❌ Database not found at:", CONFIG.DB_PATH);
       console.error("   Run: npm run setup-db");
       process.exit(1);
     }
 
+    // Initialize SQL.js
     logInfo("Initializing database...");
     const SQL = await initSqlJs();
 
+    // Load database
     const fileBuffer = fs.readFileSync(CONFIG.DB_PATH);
     db = new SQL.Database(fileBuffer);
 
+    // Verify database
     const tableCheck = queryOne(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='doctors'",
     );
@@ -550,34 +703,93 @@ async function startServer() {
     }
 
     const doctorCount = queryOne("SELECT COUNT(*) as c FROM doctors");
-    logInfo(`Database loaded (${doctorCount?.c || 0} doctors)`);
+    logInfo(`Database loaded successfully (${doctorCount?.c || 0} doctors)`);
 
+    // Start server
     const server = app.listen(CONFIG.PORT, () => {
-      logInfo(`🚀 Server running → http://localhost:${CONFIG.PORT}`);
-      logInfo(`📄 Page size: ${CONFIG.DEFAULT_PAGE_SIZE} doctors per page`);
+      console.log("");
+      console.log(
+        "╔════════════════════════════════════════════════════════════╗",
+      );
+      console.log(
+        "║                    🏥 DocSearch Server                     ║",
+      );
+      console.log(
+        "╠════════════════════════════════════════════════════════════╣",
+      );
+      console.log(
+        `║  🚀 Server:      http://localhost:${CONFIG.PORT}                    ║`,
+      );
+      console.log(
+        `║  📄 Page Size:   ${CONFIG.PAGE_SIZE} doctors per page                     ║`,
+      );
+      console.log(`║  🌍 Environment: ${CONFIG.NODE_ENV.padEnd(36)}║`);
+      console.log(
+        `║  💾 Database:    ${doctorCount?.c || 0} doctors                             ║`,
+      );
+      console.log(
+        "╚════════════════════════════════════════════════════════════╝",
+      );
+      console.log("");
     });
 
-    // Graceful shutdown
+    // Server error handling
+    server.on("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        console.error(`❌ Port ${CONFIG.PORT} is already in use`);
+      } else {
+        console.error("❌ Server error:", error);
+      }
+      process.exit(1);
+    });
+
+    // Graceful shutdown handler
     const shutdown = (signal) => {
-      logInfo(`\n${signal} received. Shutting down...`);
+      logInfo(`\n${signal} received. Shutting down gracefully...`);
 
       server.close(() => {
-        if (db) db.close();
-        logInfo("Shutdown complete");
+        logInfo("HTTP server closed");
+
+        if (db) {
+          db.close();
+          logInfo("Database connection closed");
+        }
+
+        logInfo("Shutdown complete. Goodbye! 👋");
         process.exit(0);
       });
 
+      // Force close after 10 seconds
       setTimeout(() => {
+        console.error("⚠️ Forced shutdown after timeout");
         process.exit(1);
       }, 10000);
     };
 
+    // Handle shutdown signals
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+    // Handle uncaught errors
+    process.on("uncaughtException", (error) => {
+      logError("Uncaught Exception", error);
+      shutdown("UNCAUGHT_EXCEPTION");
+    });
+
+    process.on("unhandledRejection", (reason, promise) => {
+      logError("Unhandled Rejection", reason);
+    });
   } catch (error) {
     console.error("❌ Startup failed:", error.message);
     process.exit(1);
   }
 }
 
+// Start the server
 startServer();
+
+/* ============================================================
+   MODULE EXPORTS (for testing)
+   ============================================================ */
+
+module.exports = { app, CONFIG };
