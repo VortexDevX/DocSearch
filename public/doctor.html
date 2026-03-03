@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="View doctor profile on DocSearch - Find trusted doctors across India" />
+    <meta name="robots" content="noindex" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#4f7cff" />
+
+    <title>Doctor Profile — DocSearch</title>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo16qeRV/X9wT5fOp6w4T/hGbpQBozthLhIoYdxg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!-- Additional Detail Page Styles -->
+    <style>
+        .detail-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: 700;
+            margin: 0 auto 20px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .detail-specialty {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 16px;
+        }
+
+        .detail-rating {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 18px;
+        }
+
+        .detail-rating i {
+            color: #fbbf24;
+        }
+
+        .detail-rating strong {
+            font-weight: 700;
+        }
+
+        .rating-text {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .detail-bio {
+            margin-top: 24px;
+            font-size: 15px;
+            line-height: 1.7;
+            opacity: 0.9;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .detail-section {
+            background: #f9fafb;
+            padding: 24px;
+            border-radius: 16px;
+        }
+
+        .detail-section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .detail-section-title i {
+            color: #4f7cff;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .detail-value {
+            font-weight: 500;
+            color: #1f2937;
+            text-align: right;
+            font-size: 14px;
+        }
+
+        .detail-fee {
+            color: #059669;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .detail-link {
+            color: #4f7cff;
+            transition: color 0.2s ease;
+        }
+
+        .detail-link:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+
+        .detail-actions {
+            padding: 30px 40px;
+            background: #f9fafb;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        /* Empty state icon color override */
+        .empty-state .empty-icon {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+        }
+
+        .empty-state .empty-icon i {
+            color: #ef4444;
+        }
+
+        @media (max-width: 768px) {
+            .detail-avatar {
+                width: 80px;
+                height: 80px;
+                font-size: 28px;
+            }
+
+            .detail-hero h1 {
+                font-size: 24px;
+            }
+
+            .detail-specialty {
+                font-size: 16px;
+            }
+
+            .detail-rating {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .detail-section {
+                padding: 16px;
+            }
+
+            .detail-row {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .detail-value {
+                text-align: left;
+            }
+
+            .detail-actions {
+                padding: 20px;
+                flex-direction: column;
+            }
+
+            .detail-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#detailPage" class="skip-link">Skip to main content</a>
+
+    <!-- NAVBAR -->
+    <nav class="navbar scrolled" role="navigation" aria-label="Main navigation">
+        <div class="container nav-inner">
+
+            <a href="/" class="logo" aria-label="DocSearch - Go to homepage">
+                <img src="assets/logo.png" alt="" class="logo-img" aria-hidden="true" />
+                <span class="logo-text">DocSearch</span>
+            </a>
+
+            <div class="nav-right">
+                <a href="/" class="btn btn-ghost btn-sm">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    Back to Search
+                </a>
+
+                <a href="tel:112" class="btn btn-danger btn-sm" aria-label="Emergency call 112">
+                    <i class="fas fa-phone-alt" aria-hidden="true"></i>
+                    112
+                </a>
+            </div>
+
+            <!-- Mobile hamburger (hidden on this page but kept for consistency) -->
+            <button class="hamburger hidden" id="hamburger" type="button" aria-label="Open menu" aria-expanded="false">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
+
+        </div>
+    </nav>
+
+    <!-- MAIN PROFILE -->
+    <main class="detail-page" id="detailPage" role="main" aria-label="Doctor profile">
+        <div class="container">
+
+            <!-- Loader -->
+            <div class="loader" id="loader" role="status" aria-live="polite" aria-busy="true">
+                <div class="loader-spinner" aria-hidden="true"></div>
+                <p>Loading doctor profile...</p>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer" role="contentinfo">
+        <div class="container footer-inner">
+
+            <div class="footer-brand">
+                <img src="assets/logo.png" alt="DocSearch Logo" class="logo-img-footer" />
+                <p>Finding the right doctor shouldn't be complicated.</p>
+            </div>
+
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <a href="/">Find Doctors</a>
+                <a href="/#specialties">Specialties</a>
+            </div>
+
+            <div class="footer-links">
+                <h4>Emergency</h4>
+                <a href="tel:112">
+                    <i class="fas fa-phone-alt" aria-hidden="true"></i>
+                    Emergency 112
+                </a>
+                <a href="tel:108">
+                    <i class="fas fa-ambulance" aria-hidden="true"></i>
+                    Ambulance 108
+                </a>
+            </div>
+
+        </div>
+
+        <div class="footer-bottom">
+            <div class="container">
+                <p>© <span id="currentYear">2024</span> DocSearch. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Update year dynamically -->
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+
+    <!-- Main Script -->
+    <script src="js/doctor.js"></script>
+
+</body>
+
+</html>

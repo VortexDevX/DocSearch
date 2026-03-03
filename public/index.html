@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO Meta Tags -->
+    <meta name="description"
+        content="DocSearch - Find trusted and verified doctors across India. Search by specialty, city, and more. Book appointments with top-rated physicians." />
+    <meta name="keywords"
+        content="doctors, physicians, healthcare, medical, appointment, India, specialist, hospital" />
+    <meta name="author" content="DocSearch" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#4f7cff" />
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://docsearch.com/" />
+    <meta property="og:title" content="DocSearch — Find the Right Doctor in India" />
+    <meta property="og:description"
+        content="Search from verified database of specialists across India. Find doctors by specialty, city, rating and more." />
+    <meta property="og:image" content="/assets/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DocSearch — Find the Right Doctor in India" />
+    <meta name="twitter:description" content="Search from verified database of specialists across India." />
+    <meta name="twitter:image" content="/assets/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/assets/logo.png" />
+    <link rel="apple-touch-icon" href="/assets/logo.png" />
+
+    <title>DocSearch — Find the Right Doctor in India</title>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- NAVBAR -->
+    <nav class="navbar" id="navbar" role="navigation" aria-label="Main navigation">
+        <div class="container nav-inner">
+
+            <a href="/" class="logo" aria-label="DocSearch - Home">
+                <img src="assets/logo.png" alt="" class="logo-img" aria-hidden="true" />
+                <span class="logo-text">DocSearch</span>
+            </a>
+
+            <div class="nav-right">
+                <a href="#search" class="nav-link">Find Doctors</a>
+                <a href="#specialties" class="nav-link">Specialties</a>
+                <a href="tel:112" class="btn btn-danger btn-sm" aria-label="Emergency call 112">
+                    <i class="fas fa-phone-alt" aria-hidden="true"></i>
+                    <span>112</span>
+                </a>
+            </div>
+
+            <button class="hamburger" id="hamburger" type="button" aria-label="Open navigation menu"
+                aria-expanded="false" aria-controls="mobileMenu">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div class="mobile-menu hidden" id="mobileMenu" role="menu" aria-label="Mobile navigation">
+            <a href="#search" class="mobile-link" role="menuitem">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                Find Doctors
+            </a>
+            <a href="#specialties" class="mobile-link" role="menuitem">
+                <i class="fas fa-stethoscope" aria-hidden="true"></i>
+                Specialties
+            </a>
+            <a href="tel:112" class="mobile-link emergency" role="menuitem">
+                <i class="fas fa-phone-alt" aria-hidden="true"></i>
+                Emergency 112
+            </a>
+            <a href="tel:108" class="mobile-link emergency" role="menuitem">
+                <i class="fas fa-ambulance" aria-hidden="true"></i>
+                Ambulance 108
+            </a>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main id="main-content">
+
+        <!-- HERO SECTION -->
+        <header class="hero" role="banner">
+            <div class="container hero-content">
+
+                <div class="hero-badge">
+                    <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                    <span>Verified & Trusted Doctors</span>
+                </div>
+
+                <h1>
+                    Find the Right Doctor<br />
+                    <span class="gradient-text">Instantly</span>
+                </h1>
+
+                <p class="hero-sub">
+                    Search from our verified database of
+                    <strong id="heroTotal" aria-live="polite">50+</strong> specialists across India
+                </p>
+
+                <!-- Hero Search Form -->
+                <form class="hero-search-box" id="heroSearchForm" role="search" aria-label="Search for doctors"
+                    onsubmit="return false;">
+                    <div class="search-icon" aria-hidden="true">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <label for="heroSearch" class="sr-only">Search doctors</label>
+                    <input type="search" id="heroSearch" name="search"
+                        placeholder="Search by doctor, specialty, hospital, or city..." autocomplete="off"
+                        aria-describedby="searchHelp" />
+                    <button type="button" class="btn btn-primary" id="heroSearchBtn">
+                        <span>Search</span>
+                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                    </button>
+                </form>
+                <div id="searchHelp" class="sr-only">
+                    Search for doctors by name, specialty, hospital, or city
+                </div>
+
+                <!-- Quick Search Tags -->
+                <div class="hero-tags" role="list" aria-label="Popular specialties">
+                    <button type="button" class="hero-tag" data-search="Cardiologist" role="listitem">
+                        <i class="fas fa-heartbeat" aria-hidden="true"></i>
+                        <span>Cardiologist</span>
+                    </button>
+                    <button type="button" class="hero-tag" data-search="Dermatologist" role="listitem">
+                        <i class="fas fa-hand-sparkles" aria-hidden="true"></i>
+                        <span>Dermatologist</span>
+                    </button>
+                    <button type="button" class="hero-tag" data-search="Neurologist" role="listitem">
+                        <i class="fas fa-brain" aria-hidden="true"></i>
+                        <span>Neurologist</span>
+                    </button>
+                    <button type="button" class="hero-tag" data-search="Dentist" role="listitem">
+                        <i class="fas fa-tooth" aria-hidden="true"></i>
+                        <span>Dentist</span>
+                    </button>
+                    <button type="button" class="hero-tag" data-search="Pediatrician" role="listitem">
+                        <i class="fas fa-baby" aria-hidden="true"></i>
+                        <span>Pediatrician</span>
+                    </button>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- STATS SECTION -->
+        <section class="stats" id="stats" aria-labelledby="stats-heading">
+            <h2 id="stats-heading" class="sr-only">Platform Statistics</h2>
+            <div class="container stats-grid">
+
+                <article class="stat-card">
+                    <div class="stat-icon" aria-hidden="true">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <div class="stat-number" id="statDoctors" aria-live="polite">0</div>
+                    <div class="stat-label">Verified Doctors</div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-icon" aria-hidden="true">
+                        <i class="fas fa-stethoscope"></i>
+                    </div>
+                    <div class="stat-number" id="statSpecs" aria-live="polite">0</div>
+                    <div class="stat-label">Specialties</div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-icon" aria-hidden="true">
+                        <i class="fas fa-city"></i>
+                    </div>
+                    <div class="stat-number" id="statCities" aria-live="polite">0</div>
+                    <div class="stat-label">Cities</div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-icon star" aria-hidden="true">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-number" id="statRating" aria-live="polite">0</div>
+                    <div class="stat-label">Avg. Rating</div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- SPECIALTIES SECTION -->
+        <section class="specialty-section" id="specialties" aria-labelledby="specialties-heading">
+            <div class="container">
+                <h2 class="section-heading" id="specialties-heading">
+                    Browse by <span class="gradient-text">Specialty</span>
+                </h2>
+                <div class="specialty-chips" id="specialtyChips" role="list" aria-label="Available specialties">
+                    <!-- Populated by JavaScript -->
+                    <div class="loader" aria-label="Loading specialties">
+                        <div class="loader-spinner" aria-hidden="true"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SEARCH & RESULTS SECTION -->
+        <section class="search-section" id="search" aria-labelledby="search-heading">
+            <div class="container">
+
+                <!-- Section Header with Result Count -->
+                <div class="section-header">
+                    <h2 class="section-heading" id="search-heading">
+                        All <span class="gradient-text">Doctors</span>
+                    </h2>
+                    <div class="result-badge" id="resultCount" role="status" aria-live="polite" aria-atomic="true">
+                        0 doctors
+                    </div>
+                </div>
+
+                <!-- Filters Bar -->
+                <div class="filters-bar">
+                    <button type="button" class="filter-toggle" id="filterToggle" aria-expanded="false"
+                        aria-controls="filtersPanel">
+                        <i class="fas fa-sliders-h" aria-hidden="true"></i>
+                        <span>Filters</span>
+                        <span class="active-filters-count hidden" id="activeFiltersCount"
+                            aria-label="Active filters count">0</span>
+                    </button>
+
+                    <!-- Quick Filter Input (replaces old live search) -->
+                    <div class="quick-filter">
+                        <label for="quickFilter" class="sr-only">Quick filter visible doctors</label>
+                        <i class="fas fa-filter" aria-hidden="true"></i>
+                        <input type="text" id="quickFilter" placeholder="Quick filter..." autocomplete="off" />
+                    </div>
+
+                    <!-- Filters Panel -->
+                    <div class="filters-panel hidden" id="filtersPanel" role="region" aria-label="Search filters">
+                        <div class="filters-grid">
+
+                            <div class="filter-group">
+                                <label for="filterSpecialty">Specialty</label>
+                                <select id="filterSpecialty" name="specialty">
+                                    <option value="">All Specialties</option>
+                                    <!-- Populated by JavaScript -->
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="filterCity">City</label>
+                                <select id="filterCity" name="city">
+                                    <option value="">All Cities</option>
+                                    <!-- Populated by JavaScript -->
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="filterGender">Gender</label>
+                                <select id="filterGender" name="gender">
+                                    <option value="">All</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="filterSort">Sort By</label>
+                                <select id="filterSort" name="sort">
+                                    <option value="rating">Highest Rated</option>
+                                    <option value="experience">Most Experienced</option>
+                                    <option value="fee_low">Lowest Fee</option>
+                                    <option value="fee_high">Highest Fee</option>
+                                    <option value="name">Name A-Z</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="filterExp">Min Experience (years)</label>
+                                <input type="number" id="filterExp" name="minExp" min="0" max="50" placeholder="e.g., 5"
+                                    aria-describedby="filterExpHelp" />
+                                <span id="filterExpHelp" class="sr-only">Enter minimum years of experience</span>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="filterFee">Max Fee (₹)</label>
+                                <input type="number" id="filterFee" name="maxFee" min="0" max="100000"
+                                    placeholder="e.g., 1000" aria-describedby="filterFeeHelp" />
+                                <span id="filterFeeHelp" class="sr-only">Enter maximum consultation fee in rupees</span>
+                            </div>
+
+                        </div>
+
+                        <div class="filter-actions">
+                            <button type="button" class="btn btn-primary" id="applyFilters">
+                                <i class="fas fa-check" aria-hidden="true"></i>
+                                Apply Filters
+                            </button>
+                            <button type="button" class="btn btn-ghost" id="resetFilters">
+                                <i class="fas fa-undo" aria-hidden="true"></i>
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Doctors Grid -->
+                <div class="doctors-grid" id="doctorsGrid" role="list" aria-label="List of doctors">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <!-- Load More Section -->
+                <div class="load-more-container hidden" id="loadMoreContainer">
+                    <div class="load-more-progress">
+                        <span class="load-more-text-info">
+                            Showing <strong id="loadedCount">0</strong> of <strong id="totalCount">0</strong> doctors
+                        </span>
+                        <div class="load-more-bar">
+                            <div class="load-more-bar-fill" id="loadMoreBarFill"></div>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-lg load-more-btn" id="loadMoreBtn"
+                        aria-label="Load more doctors">
+                        <span class="load-more-spinner hidden" id="loadMoreSpinner">
+                            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                        </span>
+                        <span id="loadMoreText">Load More</span>
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div class="loader hidden" id="loader" role="status" aria-live="polite" aria-busy="true">
+                    <div class="loader-spinner" aria-hidden="true"></div>
+                    <p>Finding the best doctors for you...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state hidden" id="emptyState" role="status" aria-live="polite">
+                    <div class="empty-icon" aria-hidden="true">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <h3>No Doctors Found</h3>
+                    <p>Try adjusting your search or filters</p>
+                    <button type="button" class="btn btn-primary" id="emptyReset">
+                        <i class="fas fa-undo" aria-hidden="true"></i>
+                        Reset Everything
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer" role="contentinfo">
+        <div class="container footer-inner">
+
+            <div class="footer-brand">
+                <img src="assets/logo.png" alt="DocSearch Logo" class="logo-img-footer" />
+                <p>Finding the right doctor shouldn't be complicated. We help you discover trusted healthcare
+                    professionals across India.</p>
+
+                <!-- Social Links -->
+                <div class="footer-social">
+                    <a href="#" aria-label="Follow us on Twitter">
+                        <i class="fab fa-twitter" aria-hidden="true"></i>
+                    </a>
+                    <a href="#" aria-label="Follow us on Facebook">
+                        <i class="fab fa-facebook" aria-hidden="true"></i>
+                    </a>
+                    <a href="#" aria-label="Follow us on Instagram">
+                        <i class="fab fa-instagram" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <a href="#search">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    Find Doctors
+                </a>
+                <a href="#specialties">
+                    <i class="fas fa-stethoscope" aria-hidden="true"></i>
+                    Specialties
+                </a>
+                <a href="#stats">
+                    <i class="fas fa-chart-bar" aria-hidden="true"></i>
+                    Statistics
+                </a>
+            </div>
+
+            <div class="footer-links">
+                <h4>Emergency</h4>
+                <a href="tel:112" class="footer-emergency">
+                    <i class="fas fa-phone-alt" aria-hidden="true"></i>
+                    Emergency 112
+                </a>
+                <a href="tel:108" class="footer-emergency">
+                    <i class="fas fa-ambulance" aria-hidden="true"></i>
+                    Ambulance 108
+                </a>
+                <a href="tel:1800112" class="footer-emergency">
+                    <i class="fas fa-heartbeat" aria-hidden="true"></i>
+                    Health Helpline
+                </a>
+            </div>
+
+        </div>
+
+        <div class="footer-bottom">
+            <div class="container">
+                <p>
+                    © <span id="currentYear">2024</span> DocSearch. All rights reserved.
+                    <span class="footer-divider">|</span>
+                    <a href="#">Privacy Policy</a>
+                    <span class="footer-divider">|</span>
+                    <a href="#">Terms of Service</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scroll to Top Button -->
+    <button type="button" class="scroll-top hidden" id="scrollTop" aria-label="Scroll to top of page">
+        <i class="fas fa-chevron-up" aria-hidden="true"></i>
+    </button>
+
+    <!-- Dynamic Year Script -->
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+
+    <!-- Main Application Script -->
+    <script src="js/app.js"></script>
+</body>
+
+</html>
