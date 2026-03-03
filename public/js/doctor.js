@@ -130,7 +130,7 @@ function showError(title, message, showHomeButton = true) {
   page.innerHTML = `
     <div class="container">
       <div class="empty-state" role="alert">
-        <div class="empty-icon">
+        <div class="empty-icon error">
           <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
         </div>
         <h3>${escapeHTML(title)}</h3>
@@ -140,7 +140,7 @@ function showError(title, message, showHomeButton = true) {
             ? `
           <a href="/" class="btn btn-primary">
             <i class="fas fa-home" aria-hidden="true"></i>
-            Go Home
+            <span>Go Home</span>
           </a>
         `
             : ""
@@ -188,7 +188,7 @@ function renderDoctor(doc) {
     metaDesc.name = "description";
     document.head.appendChild(metaDesc);
   }
-  metaDesc.content = `${escapeHTML(doc.name)} - ${escapeHTML(doc.specialty)} at ${escapeHTML(doc.hospital)}, ${escapeHTML(doc.city)}. Book appointment now.`;
+  metaDesc.content = `${doc.name} - ${doc.specialty} at ${doc.hospital}, ${doc.city}. Book appointment now.`;
 
   // Generate safe values
   const initials = escapeHTML(getInitials(doc.name));
@@ -229,7 +229,7 @@ function renderDoctor(doc) {
           <div class="detail-section">
             <h2 class="detail-section-title">
               <i class="fas fa-user-md" aria-hidden="true"></i>
-              Professional Information
+              <span>Professional Information</span>
             </h2>
             <div class="detail-row">
               <span class="detail-label">Hospital</span>
@@ -256,7 +256,7 @@ function renderDoctor(doc) {
           <div class="detail-section">
             <h2 class="detail-section-title">
               <i class="fas fa-address-card" aria-hidden="true"></i>
-              Contact Information
+              <span>Contact Information</span>
             </h2>
             <div class="detail-row">
               <span class="detail-label">City</span>
@@ -265,13 +265,21 @@ function renderDoctor(doc) {
             <div class="detail-row">
               <span class="detail-label">Phone</span>
               <span class="detail-value">
-                ${doc.phone ? `<a href="tel:${escapeHTML(doc.phone)}" class="detail-link">${phone}</a>` : phone}
+                ${
+                  doc.phone
+                    ? `<a href="tel:${escapeHTML(doc.phone)}" class="detail-link">${phone}</a>`
+                    : phone
+                }
               </span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Email</span>
               <span class="detail-value">
-                ${doc.email ? `<a href="mailto:${escapeHTML(doc.email)}" class="detail-link">${email}</a>` : email}
+                ${
+                  doc.email
+                    ? `<a href="mailto:${escapeHTML(doc.email)}" class="detail-link">${email}</a>`
+                    : email
+                }
               </span>
             </div>
           </div>
@@ -284,7 +292,7 @@ function renderDoctor(doc) {
               ? `
             <a href="tel:${escapeHTML(doc.phone)}" class="btn btn-primary btn-lg">
               <i class="fas fa-phone-alt" aria-hidden="true"></i>
-              Call Now
+              <span>Call Now</span>
             </a>
           `
               : ""
@@ -294,14 +302,14 @@ function renderDoctor(doc) {
               ? `
             <a href="mailto:${escapeHTML(doc.email)}" class="btn btn-ghost btn-lg">
               <i class="fas fa-envelope" aria-hidden="true"></i>
-              Send Email
+              <span>Send Email</span>
             </a>
           `
               : ""
           }
           <a href="/" class="btn btn-ghost btn-lg">
             <i class="fas fa-arrow-left" aria-hidden="true"></i>
-            Back to Search
+            <span>Back to Search</span>
           </a>
         </footer>
 
@@ -326,7 +334,6 @@ function announceToScreenReader(message) {
 
   document.body.appendChild(announcement);
 
-  // Remove after announcement
   setTimeout(() => {
     announcement.remove();
   }, 1000);
@@ -353,7 +360,7 @@ async function loadDoctor() {
     return;
   }
 
-  // Validate ID
+  // Validate ID exists
   if (!id) {
     showInvalidId();
     return;
@@ -395,7 +402,7 @@ async function loadDoctor() {
     console.error("Load doctor error:", error);
 
     // Check if it's a network error
-    if (error.name === "TypeError" && error.message.includes("fetch")) {
+    if (error instanceof TypeError && error.message.includes("fetch")) {
       showNetworkError();
     } else {
       showError(
@@ -418,10 +425,12 @@ function setupKeyboardNav() {
     }
 
     // Go back on Backspace (when not in input)
+    const activeTag = document.activeElement?.tagName;
     if (
       e.key === "Backspace" &&
-      !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)
+      !["INPUT", "TEXTAREA", "SELECT"].includes(activeTag)
     ) {
+      e.preventDefault();
       window.location.href = "/";
     }
   });
@@ -434,6 +443,12 @@ function setupKeyboardNav() {
 function init() {
   loadDoctor();
   setupKeyboardNav();
+
+  // Update footer year
+  const yearElement = document.getElementById("currentYear");
+  if (yearElement) {
+    yearElement.textContent = new Date().getFullYear();
+  }
 }
 
 // Wait for DOM to be ready

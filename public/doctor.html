@@ -12,6 +12,10 @@
 
     <title>Doctor Profile — DocSearch</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/assets/logo.png" />
+    <link rel="apple-touch-icon" href="/assets/logo.png" />
+
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -22,14 +26,14 @@
 
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-        integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo16qeRV/X9wT5fOp6w4T/hGbpQBozthLhIoYdxg=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css" />
 
-    <!-- Additional Detail Page Styles -->
+    <!-- Detail Page Specific Styles -->
     <style>
+        /* Detail Avatar */
         .detail-avatar {
             width: 100px;
             height: 100px;
@@ -81,6 +85,7 @@
             margin-right: auto;
         }
 
+        /* Detail Sections */
         .detail-section {
             background: #f9fafb;
             padding: 24px;
@@ -144,6 +149,7 @@
             text-decoration: underline;
         }
 
+        /* Detail Actions */
         .detail-actions {
             padding: 30px 40px;
             background: #f9fafb;
@@ -153,15 +159,16 @@
             justify-content: center;
         }
 
-        /* Empty state icon color override */
-        .empty-state .empty-icon {
+        /* Error State */
+        .empty-state .empty-icon.error {
             background: linear-gradient(135deg, #fee2e2, #fecaca);
         }
 
-        .empty-state .empty-icon i {
+        .empty-state .empty-icon.error i {
             color: #ef4444;
         }
 
+        /* Responsive */
         @media (max-width: 768px) {
             .detail-avatar {
                 width: 80px;
@@ -224,19 +231,19 @@
             <div class="nav-right">
                 <a href="/" class="btn btn-ghost btn-sm">
                     <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                    Back to Search
+                    <span>Back to Search</span>
                 </a>
 
                 <a href="tel:112" class="btn btn-danger btn-sm" aria-label="Emergency call 112">
                     <i class="fas fa-phone-alt" aria-hidden="true"></i>
-                    112
+                    <span>112</span>
                 </a>
             </div>
 
-            <!-- Mobile hamburger (hidden on this page but kept for consistency) -->
-            <button class="hamburger hidden" id="hamburger" type="button" aria-label="Open menu" aria-expanded="false">
-                <i class="fas fa-bars" aria-hidden="true"></i>
-            </button>
+            <!-- Mobile: Only show back button -->
+            <a href="/" class="hamburger" aria-label="Go back to search" style="display: none;">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            </a>
 
         </div>
     </nav>
@@ -265,17 +272,23 @@
 
             <div class="footer-links">
                 <h4>Quick Links</h4>
-                <a href="/">Find Doctors</a>
-                <a href="/#specialties">Specialties</a>
+                <a href="/">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    Find Doctors
+                </a>
+                <a href="/#specialties">
+                    <i class="fas fa-stethoscope" aria-hidden="true"></i>
+                    Specialties
+                </a>
             </div>
 
             <div class="footer-links">
                 <h4>Emergency</h4>
-                <a href="tel:112">
+                <a href="tel:112" class="footer-emergency">
                     <i class="fas fa-phone-alt" aria-hidden="true"></i>
                     Emergency 112
                 </a>
-                <a href="tel:108">
+                <a href="tel:108" class="footer-emergency">
                     <i class="fas fa-ambulance" aria-hidden="true"></i>
                     Ambulance 108
                 </a>
@@ -289,11 +302,6 @@
             </div>
         </div>
     </footer>
-
-    <!-- Update year dynamically -->
-    <script>
-        document.getElementById('currentYear').textContent = new Date().getFullYear();
-    </script>
 
     <!-- Main Script -->
     <script src="js/doctor.js"></script>

@@ -1,7 +1,7 @@
 /* =========================================================
    DocSearch - Main Application
    Fixed: XSS, accessibility, events, performance
-   With Load More Pagination
+   With Load More Pagination & Single Search
    ========================================================= */
 
 /* =========================================================
@@ -82,6 +82,7 @@ function formatNumber(num) {
    ========================================================= */
 
 const DOM = {
+  // Navigation
   get navbar() {
     return $("#navbar");
   },
@@ -91,6 +92,8 @@ const DOM = {
   get mobileMenu() {
     return $("#mobileMenu");
   },
+
+  // Hero Search (Main Search)
   get heroSearch() {
     return $("#heroSearch");
   },
@@ -100,9 +103,13 @@ const DOM = {
   get heroTags() {
     return $$(".hero-tag");
   },
-  get liveSearch() {
-    return $("#liveSearch");
+
+  // Quick Filter (Filters loaded doctors only)
+  get quickFilter() {
+    return $("#quickFilter");
   },
+
+  // Filters Panel
   get filterToggle() {
     return $("#filterToggle");
   },
@@ -136,6 +143,8 @@ const DOM = {
   get activeFiltersCount() {
     return $("#activeFiltersCount");
   },
+
+  // Doctors Grid
   get doctorsGrid() {
     return $("#doctorsGrid");
   },
@@ -151,28 +160,13 @@ const DOM = {
   get emptyReset() {
     return $("#emptyReset");
   },
+
+  // Specialty Section
   get specialtyChips() {
     return $("#specialtyChips");
   },
-  get scrollTop() {
-    return $("#scrollTop");
-  },
-  get statDoctors() {
-    return $("#statDoctors");
-  },
-  get statSpecs() {
-    return $("#statSpecs");
-  },
-  get statCities() {
-    return $("#statCities");
-  },
-  get statRating() {
-    return $("#statRating");
-  },
-  get heroTotal() {
-    return $("#heroTotal");
-  },
-  // Load More elements
+
+  // Load More
   get loadMoreContainer() {
     return $("#loadMoreContainer");
   },
@@ -191,6 +185,29 @@ const DOM = {
   get totalCount() {
     return $("#totalCount");
   },
+  get loadMoreBarFill() {
+    return $("#loadMoreBarFill");
+  },
+
+  // Misc
+  get scrollTop() {
+    return $("#scrollTop");
+  },
+  get statDoctors() {
+    return $("#statDoctors");
+  },
+  get statSpecs() {
+    return $("#statSpecs");
+  },
+  get statCities() {
+    return $("#statCities");
+  },
+  get statRating() {
+    return $("#statRating");
+  },
+  get heroTotal() {
+    return $("#heroTotal");
+  },
 };
 
 /* =========================================================
@@ -198,25 +215,33 @@ const DOM = {
    ========================================================= */
 
 const State = {
-  // All doctors from current search
+  // All doctors from current search (accumulated from pagination)
   allDoctors: [],
-  // Currently displayed doctors (after live filter)
+
+  // Filtered doctors (after quick filter)
   filteredDoctors: [],
-  // Loading state
+
+  // Loading states
   isLoading: false,
   isLoadingMore: false,
+
   // Current request (for cancellation)
   currentRequest: null,
+
   // Filters panel state
   filtersOpen: false,
+
   // Dropdown data
   specialties: [],
   cities: [],
 
+  // Quick filter active
+  quickFilterActive: false,
+
   // Pagination
   pagination: {
     currentPage: 1,
-    pageSize: 12, // Show 12 doctors per page
+    pageSize: 12,
     totalDoctors: 0,
     totalPages: 0,
     hasMore: false,
@@ -265,6 +290,7 @@ function animateNumber(element, target, decimals = 0) {
     const elapsed = currentTime - start;
     const progress = Math.min(elapsed / duration, 1);
 
+    // Ease out cubic
     const easeProgress = 1 - Math.pow(1 - progress, 3);
     const currentValue = startValue + (target - startValue) * easeProgress;
 
@@ -336,6 +362,7 @@ function showError(message) {
   const empty = DOM.emptyState;
   if (!empty) return;
 
+  setLoading(false);
   empty.classList.remove("hidden");
   DOM.loadMoreContainer?.classList.add("hidden");
 
@@ -367,7 +394,7 @@ function showEmpty() {
 function buildSearchParams(page = 1) {
   const params = new URLSearchParams();
 
-  // Hero search
+  // Hero search query
   const searchQuery = DOM.heroSearch?.value.trim();
   if (searchQuery) {
     params.append("q", searchQuery);
@@ -408,7 +435,7 @@ function buildSearchParams(page = 1) {
 }
 
 /* =========================================================
-   FETCH DOCTORS (Initial Load)
+   FETCH DOCTORS (Initial Load / New Search)
    ========================================================= */
 
 async function fetchDoctors() {
@@ -422,9 +449,16 @@ async function fetchDoctors() {
   const requestId = { cancelled: false };
   State.currentRequest = requestId;
 
-  // Reset pagination
+  // Reset pagination and state
   State.pagination.currentPage = 1;
   State.allDoctors = [];
+  State.filteredDoctors = [];
+  State.quickFilterActive = false;
+
+  // Clear quick filter input
+  if (DOM.quickFilter) {
+    DOM.quickFilter.value = "";
+  }
 
   setLoading(true, true);
   updateActiveFiltersCount();
@@ -434,6 +468,11 @@ async function fetchDoctors() {
   try {
     const response = await api(`/doctors?${params}`);
 
+    console.log("API Response:", response);
+    console.log("Meta:", response.meta);
+    console.log("Doctors received:", response.data?.length);
+
+    // Check if this request was cancelled
     if (requestId.cancelled) return;
 
     if (response.success && Array.isArray(response.data)) {
@@ -475,6 +514,11 @@ async function fetchDoctors() {
 async function loadMoreDoctors() {
   if (State.isLoadingMore || !State.pagination.hasMore) return;
 
+  // Don't load more if quick filter is active
+  if (State.quickFilterActive) {
+    return;
+  }
+
   const nextPage = State.pagination.currentPage + 1;
 
   setLoadingMore(true);
@@ -509,7 +553,6 @@ async function loadMoreDoctors() {
     }
   } catch (error) {
     console.error("Load more error:", error);
-    // Show error toast or message
     announceToScreenReader("Failed to load more doctors. Please try again.");
   } finally {
     setLoadingMore(false);
@@ -524,8 +567,15 @@ function updateLoadMoreUI() {
   const container = DOM.loadMoreContainer;
   const loadedCount = DOM.loadedCount;
   const totalCount = DOM.totalCount;
+  const progressBar = DOM.loadMoreBarFill;
 
   if (!container) return;
+
+  // Don't show load more when quick filter is active
+  if (State.quickFilterActive) {
+    container.classList.add("hidden");
+    return;
+  }
 
   const loaded = State.allDoctors.length;
   const total = State.pagination.totalDoctors;
@@ -534,9 +584,71 @@ function updateLoadMoreUI() {
   if (loadedCount) loadedCount.textContent = loaded;
   if (totalCount) totalCount.textContent = total;
 
-  // Show/hide load more button
+  // Update progress bar
+  if (progressBar && total > 0) {
+    const percentage = Math.min((loaded / total) * 100, 100);
+    progressBar.style.width = `${percentage}%`;
+  }
+
+  // Show/hide based on state
+  if (loaded === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+
   if (State.pagination.hasMore && loaded < total) {
+    // More to load - show button
     container.classList.remove("hidden");
+
+    // Reset container content if needed
+    const existingBtn = container.querySelector(".load-more-btn");
+    if (!existingBtn) {
+      container.innerHTML = `
+        <div class="load-more-progress">
+          <span class="load-more-text-info">
+            Showing <strong id="loadedCount">${loaded}</strong> of <strong id="totalCount">${total}</strong> doctors
+          </span>
+          <div class="load-more-bar">
+            <div class="load-more-bar-fill" id="loadMoreBarFill" style="width: ${(loaded / total) * 100}%"></div>
+          </div>
+        </div>
+        
+        <button 
+          type="button" 
+          class="btn btn-primary btn-lg load-more-btn" 
+          id="loadMoreBtn"
+          aria-label="Load more doctors"
+        >
+          <span class="load-more-spinner hidden" id="loadMoreSpinner">
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+          </span>
+          <span id="loadMoreText">Load More</span>
+          <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        </button>
+      `;
+
+      // Re-attach event listener
+      container
+        .querySelector("#loadMoreBtn")
+        ?.addEventListener("click", loadMoreDoctors);
+    }
+  } else if (loaded >= total && total > 0) {
+    // All loaded - show completion message
+    container.classList.remove("hidden");
+    container.innerHTML = `
+      <div class="load-more-progress">
+        <span class="load-more-text-info">
+          Showing all <strong>${total}</strong> doctors
+        </span>
+        <div class="load-more-bar">
+          <div class="load-more-bar-fill" style="width: 100%"></div>
+        </div>
+      </div>
+      <div class="load-more-complete">
+        <i class="fas fa-check-circle" aria-hidden="true"></i>
+        <p>All doctors loaded</p>
+      </div>
+    `;
   } else {
     container.classList.add("hidden");
   }
@@ -552,7 +664,7 @@ function renderDoctors(doctors, append = false) {
   const grid = DOM.doctorsGrid;
   if (!grid) return;
 
-  // If not appending, check for empty state
+  // If not appending, clear and check for empty
   if (!append) {
     grid.innerHTML = "";
 
@@ -566,8 +678,11 @@ function renderDoctors(doctors, append = false) {
   DOM.emptyState?.classList.add("hidden");
 
   // Update result count
-  const totalDisplayed = append ? State.allDoctors.length : doctors.length;
-  updateResultCount(totalDisplayed, State.pagination.totalDoctors);
+  if (State.quickFilterActive) {
+    updateResultCount(doctors.length, doctors.length);
+  } else {
+    updateResultCount(State.allDoctors.length, State.pagination.totalDoctors);
+  }
 
   // Create document fragment for better performance
   const fragment = document.createDocumentFragment();
@@ -594,6 +709,7 @@ function createDoctorCard(doc) {
   );
   article.dataset.id = doc.id;
 
+  // Generate initials safely
   const initials = escapeHTML(
     doc.name
       .split(" ")
@@ -666,6 +782,8 @@ function updateResultCount(count, total = null) {
   let text;
   if (total && total > count) {
     text = `Showing ${count} of ${total} doctors`;
+  } else if (total && total === count && count > 0) {
+    text = `${count} ${count === 1 ? "doctor" : "doctors"}`;
   } else {
     text = `${count} ${count === 1 ? "doctor" : "doctors"}`;
   }
@@ -693,18 +811,32 @@ function announceToScreenReader(message) {
 }
 
 /* =========================================================
-   LIVE SEARCH (Client-side filtering)
+   QUICK FILTER (Client-side filtering of loaded doctors)
    ========================================================= */
 
-const handleLiveSearch = debounce(() => {
-  const term = DOM.liveSearch?.value.toLowerCase().trim();
+const handleQuickFilter = debounce(() => {
+  const term = DOM.quickFilter?.value.toLowerCase().trim();
 
   if (!term) {
-    // Reset to show all loaded doctors
-    renderDoctors(State.allDoctors, false);
+    // Reset - show all loaded doctors
+    State.quickFilterActive = false;
+    State.filteredDoctors = State.allDoctors;
+
+    const grid = DOM.doctorsGrid;
+    if (grid) grid.innerHTML = "";
+
+    if (State.allDoctors.length === 0) {
+      showEmpty();
+    } else {
+      renderDoctors(State.allDoctors, false);
+    }
+
     updateLoadMoreUI();
     return;
   }
+
+  // Filter currently loaded doctors
+  State.quickFilterActive = true;
 
   const filtered = State.allDoctors.filter((doc) => {
     const searchString =
@@ -714,21 +846,23 @@ const handleLiveSearch = debounce(() => {
 
   State.filteredDoctors = filtered;
 
-  // Render filtered results (hide load more when filtering)
+  // Clear and re-render
   const grid = DOM.doctorsGrid;
   if (grid) grid.innerHTML = "";
 
   if (filtered.length === 0) {
     showEmpty();
     updateResultCount(0);
+    DOM.loadMoreContainer?.classList.add("hidden");
   } else {
     DOM.emptyState?.classList.add("hidden");
     renderDoctors(filtered, false);
     updateResultCount(filtered.length, filtered.length);
+    DOM.loadMoreContainer?.classList.add("hidden");
   }
 
-  // Hide load more when using live search
-  DOM.loadMoreContainer?.classList.add("hidden");
+  // Announce results
+  announceToScreenReader(`Found ${filtered.length} matching doctors`);
 }, 250);
 
 /* =========================================================
@@ -747,6 +881,7 @@ function toggleFiltersPanel() {
   toggle.setAttribute("aria-expanded", State.filtersOpen);
 
   if (State.filtersOpen) {
+    // Focus first filter when opened
     DOM.filterSpecialty?.focus();
   }
 }
@@ -773,6 +908,7 @@ function updateActiveFiltersCount() {
 }
 
 function resetFilters() {
+  // Reset all filter inputs
   if (DOM.filterSpecialty) DOM.filterSpecialty.value = "";
   if (DOM.filterCity) DOM.filterCity.value = "";
   if (DOM.filterGender) DOM.filterGender.value = "";
@@ -780,7 +916,10 @@ function resetFilters() {
   if (DOM.filterExp) DOM.filterExp.value = "";
   if (DOM.filterFee) DOM.filterFee.value = "";
   if (DOM.heroSearch) DOM.heroSearch.value = "";
-  if (DOM.liveSearch) DOM.liveSearch.value = "";
+  if (DOM.quickFilter) DOM.quickFilter.value = "";
+
+  // Reset state
+  State.quickFilterActive = false;
 
   updateActiveFiltersCount();
   fetchDoctors();
@@ -793,6 +932,7 @@ function resetFilters() {
 function populateSpecialties(specialties) {
   State.specialties = specialties;
 
+  // Populate dropdown
   const select = DOM.filterSpecialty;
   if (select) {
     select.innerHTML = '<option value="">All Specialties</option>';
@@ -805,6 +945,7 @@ function populateSpecialties(specialties) {
     });
   }
 
+  // Populate specialty chips
   const chipsContainer = DOM.specialtyChips;
   if (chipsContainer) {
     chipsContainer.innerHTML = "";
@@ -819,10 +960,19 @@ function populateSpecialties(specialties) {
       chip.setAttribute("aria-label", `Filter by ${spec}`);
 
       chip.addEventListener("click", () => {
+        // Set the specialty filter
         if (DOM.filterSpecialty) {
           DOM.filterSpecialty.value = spec;
         }
+
+        // Clear hero search when using chip
+        if (DOM.heroSearch) {
+          DOM.heroSearch.value = "";
+        }
+
         fetchDoctors();
+
+        // Scroll to search section
         $("#search")?.scrollIntoView({ behavior: "smooth" });
       });
 
@@ -865,6 +1015,7 @@ function toggleMobileMenu() {
   hamburger.setAttribute("aria-expanded", !isOpen);
 
   if (!isOpen) {
+    // Focus first link when opened
     menu.querySelector("a")?.focus();
   }
 }
@@ -881,7 +1032,10 @@ function closeMobileMenu() {
 const handleScroll = throttle(() => {
   const scrollY = window.scrollY;
 
+  // Scroll to top button visibility
   DOM.scrollTop?.classList.toggle("hidden", scrollY < 400);
+
+  // Navbar scroll effect
   DOM.navbar?.classList.toggle("scrolled", scrollY > 50);
 }, 100);
 
@@ -903,22 +1057,25 @@ function setupHeroTags() {
     if (!searchTerm) return;
 
     tag.addEventListener("click", () => {
+      // Set hero search value
       if (DOM.heroSearch) {
         DOM.heroSearch.value = searchTerm;
       }
+
+      // Clear filters when using hero tags
+      if (DOM.filterSpecialty) DOM.filterSpecialty.value = "";
+
       fetchDoctors();
       $("#search")?.scrollIntoView({ behavior: "smooth" });
     });
 
+    // Keyboard support
     tag.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         tag.click();
       }
     });
-
-    tag.setAttribute("tabindex", "0");
-    tag.setAttribute("role", "button");
   });
 }
 
@@ -927,33 +1084,9 @@ function setupHeroTags() {
    ========================================================= */
 
 function handleHeroSearch() {
+  // Trigger new search
   fetchDoctors();
   $("#search")?.scrollIntoView({ behavior: "smooth" });
-}
-
-/* =========================================================
-   INFINITE SCROLL (Optional Alternative)
-   ========================================================= */
-
-function setupInfiniteScroll() {
-  // Optional: Uncomment to enable infinite scroll instead of button
-  /*
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && State.pagination.hasMore && !State.isLoadingMore) {
-          loadMoreDoctors();
-        }
-      });
-    },
-    { rootMargin: "200px" }
-  );
-
-  const loadMoreContainer = DOM.loadMoreContainer;
-  if (loadMoreContainer) {
-    observer.observe(loadMoreContainer);
-  }
-  */
 }
 
 /* =========================================================
@@ -961,15 +1094,18 @@ function setupInfiniteScroll() {
    ========================================================= */
 
 async function init() {
+  // Only run on main page
   if (!DOM.doctorsGrid) return;
 
   try {
+    // Fetch initial data in parallel
     const [specRes, cityRes, statsRes] = await Promise.all([
       api("/specialties"),
       api("/cities"),
       api("/stats"),
     ]);
 
+    // Populate filters
     if (specRes.success) {
       populateSpecialties(specRes.data);
     }
@@ -978,6 +1114,7 @@ async function init() {
       populateCities(cityRes.data);
     }
 
+    // Animate stats
     if (statsRes.success) {
       const stats = statsRes.data;
 
@@ -991,10 +1128,13 @@ async function init() {
       }
     }
 
+    // Setup event listeners
     setupEventListeners();
-    setupHeroTags();
-    // setupInfiniteScroll(); // Uncomment for infinite scroll
 
+    // Setup hero tags
+    setupHeroTags();
+
+    // Initial fetch
     fetchDoctors();
   } catch (error) {
     console.error("Initialization error:", error);
@@ -1007,7 +1147,7 @@ async function init() {
    ========================================================= */
 
 function setupEventListeners() {
-  // Hero search
+  // ===== Hero Search =====
   DOM.heroSearchBtn?.addEventListener("click", handleHeroSearch);
 
   DOM.heroSearch?.addEventListener("keydown", (e) => {
@@ -1017,42 +1157,45 @@ function setupEventListeners() {
     }
   });
 
-  // Filter toggle
+  // ===== Quick Filter =====
+  DOM.quickFilter?.addEventListener("input", handleQuickFilter);
+
+  // Clear quick filter on escape
+  DOM.quickFilter?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      DOM.quickFilter.value = "";
+      handleQuickFilter();
+    }
+  });
+
+  // ===== Filter Toggle =====
   DOM.filterToggle?.addEventListener("click", toggleFiltersPanel);
   DOM.filterToggle?.setAttribute("aria-expanded", "false");
   DOM.filterToggle?.setAttribute("aria-controls", "filtersPanel");
 
-  // Apply filters
+  // ===== Apply Filters =====
   DOM.applyFilters?.addEventListener("click", () => {
     fetchDoctors();
 
+    // Close panel on mobile
     if (window.innerWidth < 768) {
       State.filtersOpen = false;
       DOM.filtersPanel?.classList.add("hidden");
+      DOM.filterToggle?.setAttribute("aria-expanded", "false");
     }
   });
 
-  // Reset filters
+  // ===== Reset Filters =====
   DOM.resetFilters?.addEventListener("click", resetFilters);
   DOM.emptyReset?.addEventListener("click", resetFilters);
 
-  // Live search
-  DOM.liveSearch?.addEventListener("input", handleLiveSearch);
-
-  // Clear live search when losing focus with empty value
-  DOM.liveSearch?.addEventListener("blur", () => {
-    if (!DOM.liveSearch.value.trim()) {
-      renderDoctors(State.allDoctors, false);
-      updateLoadMoreUI();
-    }
-  });
-
-  // Load More button
+  // ===== Load More =====
   DOM.loadMoreBtn?.addEventListener("click", loadMoreDoctors);
 
-  // Mobile menu
+  // ===== Mobile Menu =====
   DOM.hamburger?.addEventListener("click", toggleMobileMenu);
 
+  // Close mobile menu when clicking outside
   document.addEventListener("click", (e) => {
     const menu = DOM.mobileMenu;
     const hamburger = DOM.hamburger;
@@ -1068,38 +1211,49 @@ function setupEventListeners() {
     }
   });
 
+  // ===== Keyboard Shortcuts =====
   document.addEventListener("keydown", (e) => {
+    // Escape to close panels
     if (e.key === "Escape") {
       closeMobileMenu();
 
       if (State.filtersOpen) {
-        toggleFiltersPanel();
+        State.filtersOpen = false;
+        DOM.filtersPanel?.classList.add("hidden");
+        DOM.filterToggle?.setAttribute("aria-expanded", "false");
       }
+    }
+
+    // Ctrl/Cmd + K to focus search
+    if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      e.preventDefault();
+      DOM.heroSearch?.focus();
     }
   });
 
+  // Close mobile menu when clicking links
   DOM.mobileMenu?.querySelectorAll("a").forEach((link) => {
     link.addEventListener("click", closeMobileMenu);
   });
 
-  // Scroll handlers
+  // ===== Scroll Handlers =====
   window.addEventListener("scroll", handleScroll, { passive: true });
   DOM.scrollTop?.addEventListener("click", scrollToTop);
 
-  // Filter change listeners
-  [
+  // ===== Filter Change Listeners =====
+  const filterElements = [
     DOM.filterSpecialty,
     DOM.filterCity,
     DOM.filterGender,
     DOM.filterSort,
     DOM.filterExp,
     DOM.filterFee,
-  ]
-    .filter(Boolean)
-    .forEach((el) => {
-      el.addEventListener("change", updateActiveFiltersCount);
-      el.addEventListener("input", updateActiveFiltersCount);
-    });
+  ].filter(Boolean);
+
+  filterElements.forEach((el) => {
+    el.addEventListener("change", updateActiveFiltersCount);
+    el.addEventListener("input", updateActiveFiltersCount);
+  });
 }
 
 /* =========================================================
@@ -1113,7 +1267,7 @@ if (document.readyState === "loading") {
 }
 
 /* =========================================================
-   EXPORTS (for testing)
+   EXPORTS (for testing/debugging)
    ========================================================= */
 
 window.DocSearch = {
@@ -1121,4 +1275,5 @@ window.DocSearch = {
   loadMoreDoctors,
   resetFilters,
   State,
+  DOM,
 };
